@@ -1,4 +1,4 @@
-module greenlight.alexedwards.net
+module greenlight.prashant.net
 
 go 1.23.0
 

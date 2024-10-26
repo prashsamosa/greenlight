@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"greenlight.alexedwards.net/internal/validator"
+	"greenlight.prashant.net/internal/validator"
 
 	"github.com/lib/pq"
 )
