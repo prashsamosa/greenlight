@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"greenlight.prashant.net/internal/data"
-	"greenlight.prashant.net/internal/mailer"
-	"greenlight.prashant.net/internal/vcs"
+	"greenlight.alexedwards.net/internal/data"
+	"greenlight.alexedwards.net/internal/mailer"
+	"greenlight.alexedwards.net/internal/vcs"
 
 	_ "github.com/lib/pq"
 )
@@ -55,7 +55,7 @@ type application struct {
 	config config
 	logger *slog.Logger
 	models data.Models
-	mailer mailer.Mailer
+	mailer *mailer.Mailer
 	wg     sync.WaitGroup
 }
 
@@ -79,7 +79,7 @@ func main() {
 	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", "a7420fc0883489", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "e75ffd0a3aa5ec", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.prashant.net>", "SMTP sender")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.alexedwards.net>", "SMTP sender")
 
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		cfg.cors.trustedOrigins = strings.Fields(val)
@@ -120,11 +120,17 @@ func main() {
 		return time.Now().Unix()
 	}))
 
+	mailer, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
 	app := &application{
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
-		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
+		mailer: mailer,
 	}
 
 	err = app.serve()

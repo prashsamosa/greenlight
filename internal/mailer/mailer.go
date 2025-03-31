@@ -3,65 +3,87 @@ package mailer
 import (
 	"bytes"
 	"embed"
-	"html/template"
 	"time"
 
-	"github.com/go-mail/mail/v2"
+	"github.com/wneessen/go-mail"
+
+	ht "html/template"
+	tt "text/template"
 )
 
 //go:embed "templates"
 var templateFS embed.FS
 
 type Mailer struct {
-	dialer *mail.Dialer
+	client *mail.Client
 	sender string
 }
 
-func New(host string, port int, username, password, sender string) Mailer {
-	dialer := mail.NewDialer(host, port, username, password)
-	dialer.Timeout = 5 * time.Second
+func New(host string, port int, username, password, sender string) (*Mailer, error) {
+	client, err := mail.NewClient(
+		host,
+		mail.WithSMTPAuth(mail.SMTPAuthLogin),
+		mail.WithPort(port),
+		mail.WithUsername(username),
+		mail.WithPassword(password),
+		mail.WithTimeout(5*time.Second),
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	return Mailer{
-		dialer: dialer,
+	mailer := &Mailer{
+		client: client,
 		sender: sender,
 	}
+
+	return mailer, nil
 }
 
-func (m Mailer) Send(recipient, templateFile string, data any) error {
-	tmpl, err := template.New("email").ParseFS(templateFS, "templates/"+templateFile)
+func (m *Mailer) Send(recipient string, templateFile string, data any) error {
+	textTmpl, err := tt.New("").ParseFS(templateFS, "templates/"+templateFile)
 	if err != nil {
 		return err
 	}
 
 	subject := new(bytes.Buffer)
-	err = tmpl.ExecuteTemplate(subject, "subject", data)
+	err = textTmpl.ExecuteTemplate(subject, "subject", data)
 	if err != nil {
 		return err
 	}
 
 	plainBody := new(bytes.Buffer)
-	err = tmpl.ExecuteTemplate(plainBody, "plainBody", data)
+	err = textTmpl.ExecuteTemplate(plainBody, "plainBody", data)
+	if err != nil {
+		return err
+	}
+
+	htmlTmpl, err := ht.New("").ParseFS(templateFS, "templates/"+templateFile)
 	if err != nil {
 		return err
 	}
 
 	htmlBody := new(bytes.Buffer)
-	err = tmpl.ExecuteTemplate(htmlBody, "htmlBody", data)
+	err = htmlTmpl.ExecuteTemplate(htmlBody, "htmlBody", data)
 	if err != nil {
 		return err
 	}
 
-	msg := mail.NewMessage()
-	msg.SetHeader("To", recipient)
-	msg.SetHeader("From", m.sender)
-	msg.SetHeader("Subject", subject.String())
-	msg.SetBody("text/plain", plainBody.String())
-	msg.AddAlternative("text/html", htmlBody.String())
+	msg := mail.NewMsg()
 
-	err = m.dialer.DialAndSend(msg)
+	err = msg.To(recipient)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	err = msg.From(m.sender)
+	if err != nil {
+		return err
+	}
+
+	msg.Subject(subject.String())
+	msg.SetBodyString(mail.TypeTextPlain, plainBody.String())
+	msg.AddAlternativeString(mail.TypeTextHTML, htmlBody.String())
+
+	return m.client.DialAndSend(msg)
 }

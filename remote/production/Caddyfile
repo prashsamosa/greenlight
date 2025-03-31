@@ -4,7 +4,7 @@
   email you@example.com
 }
 
-greenlight.prashant.net {
+greenlight.alexedwards.net {
   respond /debug/* "Not Permitted" 403
   reverse_proxy localhost:4000
 }

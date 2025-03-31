@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"greenlight.prashant.net/internal/validator"
+	"greenlight.alexedwards.net/internal/validator"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -48,8 +48,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 }
 
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	maxBytes := 1_048_576
-	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+	r.Body = http.MaxBytesReader(w, r.Body, 1_048_576)
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
